@@ -11,8 +11,8 @@ export const getApprovedTestimonials = async (
   res: Response
 ): Promise<void> => {
   try {
-    const id = getSingleParam(req.params.id);
-    
+    const { area, limit } = req.query;
+
     let testimonials;
     if (area && area !== "all") {
       testimonials = await testimonialRepo.findByArea(area as string);
@@ -42,7 +42,7 @@ export const getApprovedTestimonials = async (
 // Obtener testimonios destacados (público)
 export const getFeaturedTestimonials = async (
   req: Request,
-    const id = getSingleParam(req.params.id);
+  res: Response
 ): Promise<void> => {
   try {
     const { limit } = req.query;
@@ -74,8 +74,7 @@ export const getTestimonialStats = async (
   try {
     const avgRating = await testimonialRepo.getAverageRating();
     const testimonials = await testimonialRepo.findApproved();
-    
-    const id = getSingleParam(req.params.id);
+
     const byArea = testimonials.reduce((acc: Record<string, number>, t) => {
       const area = t.area || "general";
       acc[area] = (acc[area] || 0) + 1;
@@ -108,7 +107,7 @@ export const createTestimonial = async (
     const userId = req.currentUser?._id || req.currentUser?.id;
     const { content, rating, area } = req.body;
 
-    const id = getSingleParam(req.params.id);
+    if (!userId) {
       res.status(401).json({
         success: false,
         message: "Debes iniciar sesión para dejar un testimonio",
@@ -234,7 +233,7 @@ export const approveTestimonial = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const testimonial = await testimonialRepo.approve(id);
 
     if (!testimonial) {
@@ -265,7 +264,7 @@ export const toggleFeatured = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const { isFeatured } = req.body;
 
     const testimonial = await testimonialRepo.feature(id, isFeatured);
@@ -298,7 +297,7 @@ export const updateTestimonial = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const updateData = req.body;
 
     const testimonial = await testimonialRepo.update(id, updateData);
@@ -331,7 +330,7 @@ export const deleteTestimonial = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const testimonial = await testimonialRepo.delete(id);
 
     if (!testimonial) {
