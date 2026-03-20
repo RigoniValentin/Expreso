@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { QuestionsService } from "@services/questionsService";
 import { QuestionRepository } from "@repositories/questionsRepository";
 import { Question } from "types/QuestionsTypes";
+import { getSingleParam } from "@utils/requestParams";
 
 const questionsService = new QuestionsService(new QuestionRepository());
 
@@ -33,7 +34,7 @@ export const answerQuestionVideo1 = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const { videoUrl } = req.body;
     if (!videoUrl || !videoUrl.trim()) {
       res.status(400).json({ message: "El link del video es obligatorio." });
@@ -58,7 +59,7 @@ export const answerQuestionVideo2 = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const { videoUrl } = req.body;
     if (!videoUrl || !videoUrl.trim()) {
       res.status(400).json({ message: "El link del video es obligatorio." });
@@ -82,7 +83,7 @@ export const rejectQuestion = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const { rejectComment } = req.body;
     if (!rejectComment) {
       res

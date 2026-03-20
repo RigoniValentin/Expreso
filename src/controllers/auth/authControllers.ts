@@ -8,6 +8,7 @@ import { IRolesRepository, IRolesService } from "types/RolesTypes";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { sendResetPasswordEmail } from "@services/emailService";
+import { objectIdToString } from "@utils/requestParams";
 
 const userRepository: IUserRepository = new UserRepository();
 const userService: IUserService = new UserService(userRepository);
@@ -116,7 +117,7 @@ export const refreshToken = async (
       return;
     }
     const updatedUser = await userService.findUserById(
-      req.currentUser._id as string
+      objectIdToString(req.currentUser._id)
     );
     if (!updatedUser) {
       res.status(404).json({ message: "User not found" });

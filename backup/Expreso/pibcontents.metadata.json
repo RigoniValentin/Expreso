@@ -1,1 +1,0 @@
-{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"moduleNumber":{"$numberInt":"1"}},"name":"moduleNumber_1","background":true,"unique":true}],"uuid":"2cb8a5636dea42178d1f22441a284887","collectionName":"pibcontents","type":"collection"}

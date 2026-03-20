@@ -2,6 +2,7 @@ import { UserRepository } from "@repositories/userRepository";
 import { UserService } from "@services/userService";
 import { IUserRepository, IUserService, User } from "types/UserTypes";
 import { Request, Response } from "express";
+import { getSingleParam } from "@utils/requestParams";
 
 const userRepository: IUserRepository = new UserRepository();
 const userService: IUserService = new UserService(userRepository);
@@ -27,7 +28,7 @@ export const findUserById = async (
   res: Response
 ): Promise<void> => {
   try {
-    const users = await userService.findUserById(req.params.id);
+    const users = await userService.findUserById(getSingleParam(req.params.id));
     if (!users) {
       res.status(404).json({ message: "Not user found" });
       return;
@@ -58,7 +59,7 @@ export const updateUser = async (
   res: Response
 ): Promise<void> => {
   try {
-    const users = await userService.updateUser(req.params.id, req.body);
+    const users = await userService.updateUser(getSingleParam(req.params.id), req.body);
     if (!users) {
       res.status(404).json({ message: "Not user found" });
       return;
@@ -75,7 +76,7 @@ export const deleteUser = async (
   res: Response
 ): Promise<void> => {
   try {
-    const users = await userService.deleteUser(req.params.id);
+    const users = await userService.deleteUser(getSingleParam(req.params.id));
     if (!users) {
       res.status(404).json({ message: "Not user found" });
       return;
@@ -124,7 +125,7 @@ export const updateUserCapacitations = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     // Se esperan valores booleanos para los 3 permisos de capacitación
     const { capSeresArte, capThr, capPhr } = req.body;
     const updatedUser = await userService.updateUser(id, {
@@ -149,7 +150,7 @@ export const updateUserCapacitationsByEmail = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { email } = req.params;
+    const email = getSingleParam(req.params.email);
     const { capSeresArte, capThr, capPhr } = req.body;
     const updatedUser = await userService.updateUserCapacitationsByEmail(
       email,

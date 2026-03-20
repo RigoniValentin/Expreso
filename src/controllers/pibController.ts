@@ -6,6 +6,7 @@ import { UserModel } from "../models/Users";
 import mongoose from "mongoose";
 import path from "path";
 import fs from "fs";
+import { getSingleNumberParam } from "@utils/requestParams";
 
 const MATERIALS_DIR = path.join(__dirname, "../../uploads/pib-materials");
 if (!fs.existsSync(MATERIALS_DIR)) {
@@ -638,7 +639,7 @@ export const getPIBModule = async (req: Request, res: Response) => {
     const { moduleNumber } = req.params;
 
     const module = await PIBContentModel.findOne({ 
-      moduleNumber: parseInt(moduleNumber),
+      moduleNumber: getSingleNumberParam(moduleNumber),
       isActive: true 
     });
 
@@ -660,7 +661,7 @@ export const updatePIBModule = async (req: Request, res: Response) => {
     const updates = req.body;
 
     const module = await PIBContentModel.findOneAndUpdate(
-      { moduleNumber: parseInt(moduleNumber) },
+      { moduleNumber: getSingleNumberParam(moduleNumber) },
       { $set: updates },
       { new: true, runValidators: true }
     );
@@ -685,14 +686,15 @@ export const addVideoToWeek = async (req: Request, res: Response) => {
     const { moduleNumber, weekNumber } = req.params;
     const { title, youtubeUrl, duration, description, order } = req.body;
 
-    const module = await PIBContentModel.findOne({ moduleNumber: parseInt(moduleNumber) });
+    const module = await PIBContentModel.findOne({ moduleNumber: getSingleNumberParam(moduleNumber) });
 
     if (!module) {
       return res.status(404).json({ message: "Módulo no encontrado" });
     }
 
+    const weekNumberValue = getSingleNumberParam(weekNumber);
     const weekIndex = module.weeklyContent.findIndex(
-      (w) => w.weekNumber === parseInt(weekNumber)
+      (w) => w.weekNumber === weekNumberValue
     );
 
     if (weekIndex === -1) {
@@ -887,13 +889,14 @@ export const addMaterialToWeek = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "El título es requerido" });
     }
 
-    const module = await PIBContentModel.findOne({ moduleNumber: parseInt(moduleNumber) });
+    const module = await PIBContentModel.findOne({ moduleNumber: getSingleNumberParam(moduleNumber) });
     if (!module) {
       return res.status(404).json({ message: "Módulo no encontrado" });
     }
 
+    const weekNumberValue = getSingleNumberParam(weekNumber);
     const weekIndex = module.weeklyContent.findIndex(
-      (w) => w.weekNumber === parseInt(weekNumber)
+      (w) => w.weekNumber === weekNumberValue
     );
     if (weekIndex === -1) {
       return res.status(404).json({ message: "Semana no encontrada" });
@@ -931,13 +934,14 @@ export const removeMaterialFromWeek = async (req: Request, res: Response) => {
   try {
     const { moduleNumber, weekNumber, materialId } = req.params;
 
-    const module = await PIBContentModel.findOne({ moduleNumber: parseInt(moduleNumber) });
+    const module = await PIBContentModel.findOne({ moduleNumber: getSingleNumberParam(moduleNumber) });
     if (!module) {
       return res.status(404).json({ message: "Módulo no encontrado" });
     }
 
+    const weekNumberValue = getSingleNumberParam(weekNumber);
     const weekIndex = module.weeklyContent.findIndex(
-      (w) => w.weekNumber === parseInt(weekNumber)
+      (w) => w.weekNumber === weekNumberValue
     );
     if (weekIndex === -1) {
       return res.status(404).json({ message: "Semana no encontrada" });

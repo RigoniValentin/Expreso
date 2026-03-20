@@ -6,6 +6,7 @@ import liveClassService from "../services/liveClassService";
 import communityService from "../services/communityService";
 import contentRepository from "../repositories/contentRepository";
 import testimonialRepository from "../repositories/testimonialRepository";
+import { getSingleParam } from "@utils/requestParams";
 
 // ============ SUBSCRIPTION CONTROLLERS ============
 export const createSubscription = async (req: Request, res: Response) => {
@@ -31,7 +32,7 @@ export const getMySubscription = async (req: Request, res: Response) => {
 
 export const pauseSubscription = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const subscription = await subscriptionService.pauseSubscription(id);
     res.json(subscription);
   } catch (error: any) {
@@ -41,7 +42,7 @@ export const pauseSubscription = async (req: Request, res: Response) => {
 
 export const cancelSubscription = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const subscription = await subscriptionService.cancelSubscription(id);
     res.json(subscription);
   } catch (error: any) {
@@ -61,7 +62,7 @@ export const getAllCourses = async (req: Request, res: Response) => {
 
 export const getCourseBySlug = async (req: Request, res: Response) => {
   try {
-    const { slug } = req.params;
+    const slug = getSingleParam(req.params.slug);
     const userId = (req as any).user?._id;
 
     const subscription = userId
@@ -78,7 +79,7 @@ export const getCourseBySlug = async (req: Request, res: Response) => {
 
 export const getCoursesByArea = async (req: Request, res: Response) => {
   try {
-    const { area } = req.params;
+    const area = getSingleParam(req.params.area);
     const courses = await courseService.getCoursesByArea(area);
     res.json(courses);
   } catch (error: any) {
@@ -168,7 +169,7 @@ export const getDailyContent = async (req: Request, res: Response) => {
 
 export const getContentById = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const content = await contentRepository.findById(id);
     if (!content) {
       return res.status(404).json({ message: "Contenido no encontrado" });
@@ -191,7 +192,7 @@ export const getUpcomingLiveClasses = async (req: Request, res: Response) => {
 
 export const registerForLiveClass = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const userId = (req as any).user._id;
     const liveClass = await liveClassService.registerUserForClass(id, userId);
     res.json(liveClass);
@@ -202,7 +203,7 @@ export const registerForLiveClass = async (req: Request, res: Response) => {
 
 export const unregisterFromLiveClass = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const userId = (req as any).user._id;
     const liveClass = await liveClassService.unregisterUserFromClass(
       id,
@@ -247,7 +248,7 @@ export const createPost = async (req: Request, res: Response) => {
 
 export const likePost = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const userId = (req as any).user._id;
     const post = await communityService.likePost(id, userId);
     res.json(post);
@@ -258,7 +259,7 @@ export const likePost = async (req: Request, res: Response) => {
 
 export const addComment = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const userId = (req as any).user._id;
     const post = await communityService.addComment(id, {
       userId,

@@ -2,6 +2,7 @@ import { RolesRepository } from "@repositories/rolesRepository";
 import { RolesService } from "@services/rolesService";
 import { IRolesRepository, IRolesService, Roles } from "types/RolesTypes";
 import { Request, Response } from "express";
+import { getSingleParam } from "@utils/requestParams";
 
 const rolesRepository: IRolesRepository = new RolesRepository();
 const rolesService: IRolesService = new RolesService(rolesRepository);
@@ -25,7 +26,7 @@ export const findRolesById = async (
   res: Response
 ): Promise<void> => {
   try {
-    const roles = await rolesService.findRolesById(req.params.id);
+    const roles = await rolesService.findRolesById(getSingleParam(req.params.id));
     if (!roles) {
       res.status(404).json({ message: "Not role found" });
       return;
@@ -56,7 +57,7 @@ export const updateRoles = async (
   res: Response
 ): Promise<void> => {
   try {
-    const roles = await rolesService.updateRoles(req.params.id, req.body);
+    const roles = await rolesService.updateRoles(getSingleParam(req.params.id), req.body);
     if (!roles) {
       res.status(404).json({ message: "Not role found" });
       return;
@@ -73,7 +74,7 @@ export const deleteRoles = async (
   res: Response
 ): Promise<void> => {
   try {
-    const roles = await rolesService.deleteRoles(req.params.id);
+    const roles = await rolesService.deleteRoles(getSingleParam(req.params.id));
     if (!roles) {
       res.status(404).json({ message: "Not role found" });
       return;

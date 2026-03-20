@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { TrainingService } from "@services/trainingService";
 import { TrainingRepository } from "@repositories/trainingRepository";
+import { getSingleParam } from "@utils/requestParams";
 
 const trainingService = new TrainingService(new TrainingRepository());
 
@@ -9,7 +10,7 @@ export const updateCupos = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const { cupos } = req.body;
     if (typeof cupos !== "number") {
       res.status(400).json({ message: "El campo 'cupos' debe ser un número." });
@@ -30,7 +31,7 @@ export const updateCupos = async (
 
 export const getCupos = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const cupos = await trainingService.getCupos(id);
     if (cupos === null) {
       res.status(404).json({ message: "Capacitación no encontrada." });

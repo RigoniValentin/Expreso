@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { TestimonialRepository } from "../repositories/testimonialRepository";
 import { UserModel } from "../models/Users";
+import { getSingleParam } from "@utils/requestParams";
 
 const testimonialRepo = new TestimonialRepository();
 
@@ -10,7 +11,7 @@ export const getApprovedTestimonials = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { limit, area } = req.query;
+    const id = getSingleParam(req.params.id);
     
     let testimonials;
     if (area && area !== "all") {
@@ -41,7 +42,7 @@ export const getApprovedTestimonials = async (
 // Obtener testimonios destacados (público)
 export const getFeaturedTestimonials = async (
   req: Request,
-  res: Response
+    const id = getSingleParam(req.params.id);
 ): Promise<void> => {
   try {
     const { limit } = req.query;
@@ -74,7 +75,7 @@ export const getTestimonialStats = async (
     const avgRating = await testimonialRepo.getAverageRating();
     const testimonials = await testimonialRepo.findApproved();
     
-    // Contar por área
+    const id = getSingleParam(req.params.id);
     const byArea = testimonials.reduce((acc: Record<string, number>, t) => {
       const area = t.area || "general";
       acc[area] = (acc[area] || 0) + 1;
@@ -107,7 +108,7 @@ export const createTestimonial = async (
     const userId = req.currentUser?._id || req.currentUser?.id;
     const { content, rating, area } = req.body;
 
-    if (!userId) {
+    const id = getSingleParam(req.params.id);
       res.status(401).json({
         success: false,
         message: "Debes iniciar sesión para dejar un testimonio",

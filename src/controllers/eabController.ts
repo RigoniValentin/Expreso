@@ -3,6 +3,7 @@ import { EABModel } from "../models/EAB";
 import mongoose from "mongoose";
 import path from "path";
 import fs from "fs";
+import { getSingleNumberParam, objectIdToString } from "@utils/requestParams";
 
 const EAB_MATERIALS_DIR = path.join(__dirname, "../../uploads/eab-materials");
 
@@ -228,8 +229,9 @@ export const updateModuleInEAB = async (req: Request, res: Response) => {
       return;
     }
 
+    const moduleNumberValue = getSingleNumberParam(moduleNumber);
     const moduleIndex = eab.modules.findIndex(
-      (m) => m.moduleNumber === parseInt(moduleNumber)
+      (m) => m.moduleNumber === moduleNumberValue
     );
 
     if (moduleIndex === -1) {
@@ -264,8 +266,9 @@ export const deleteModuleFromEAB = async (req: Request, res: Response) => {
       return;
     }
 
+    const moduleNumberValue = getSingleNumberParam(moduleNumber);
     eab.modules = eab.modules.filter(
-      (m) => m.moduleNumber !== parseInt(moduleNumber)
+      (m) => m.moduleNumber !== moduleNumberValue
     );
 
     // Renumerar módulos
@@ -300,8 +303,9 @@ export const addVideoToModule = async (req: Request, res: Response) => {
       return;
     }
 
+    const moduleNumberValue = getSingleNumberParam(moduleNumber);
     const moduleIndex = eab.modules.findIndex(
-      (m) => m.moduleNumber === parseInt(moduleNumber)
+      (m) => m.moduleNumber === moduleNumberValue
     );
 
     if (moduleIndex === -1) {
@@ -343,8 +347,9 @@ export const deleteVideoFromModule = async (req: Request, res: Response) => {
       return;
     }
 
+    const moduleNumberValue = getSingleNumberParam(moduleNumber);
     const moduleIndex = eab.modules.findIndex(
-      (m) => m.moduleNumber === parseInt(moduleNumber)
+      (m) => m.moduleNumber === moduleNumberValue
     );
 
     if (moduleIndex === -1) {
@@ -395,8 +400,9 @@ export const addMaterialToModule = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Experiencia no encontrada" });
     }
 
+    const moduleNumberValue = getSingleNumberParam(moduleNumber);
     const moduleIndex = eab.modules.findIndex(
-      (m) => m.moduleNumber === parseInt(moduleNumber)
+      (m) => m.moduleNumber === moduleNumberValue
     );
     if (moduleIndex === -1) {
       return res.status(404).json({ message: "Módulo no encontrado" });
@@ -439,8 +445,9 @@ export const removeMaterialFromModule = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Experiencia no encontrada" });
     }
 
+    const moduleNumberValue = getSingleNumberParam(moduleNumber);
     const moduleIndex = eab.modules.findIndex(
-      (m) => m.moduleNumber === parseInt(moduleNumber)
+      (m) => m.moduleNumber === moduleNumberValue
     );
     if (moduleIndex === -1) {
       return res.status(404).json({ message: "Módulo no encontrado" });
@@ -534,7 +541,7 @@ export const enrollInEAB = async (req: Request, res: Response) => {
 // Obtener mis EABs inscriptos
 export const getMyEABs = async (req: Request, res: Response) => {
   try {
-    const userId = req.currentUser?._id;
+    const userId = objectIdToString(req.currentUser?._id);
 
     const eabs = await EABModel.find({
       "participants.userId": userId,
@@ -563,7 +570,7 @@ export const updateEABProgress = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { currentModule, completedVideoId } = req.body;
-    const userId = req.currentUser?._id;
+    const userId = objectIdToString(req.currentUser?._id);
 
     const eab = await EABModel.findById(id);
 

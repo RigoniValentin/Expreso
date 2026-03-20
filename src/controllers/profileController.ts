@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { UserService } from "@services/userService";
 import { UserRepository } from "@repositories/userRepository";
 import { IUserRepository, IUserService } from "types/UserTypes";
+import { objectIdToString } from "@utils/requestParams";
 
 const userRepository: IUserRepository = new UserRepository();
 const userService: IUserService = new UserService(userRepository);
@@ -16,7 +17,7 @@ export const getProfile = async (
       return;
     }
 
-    const user = await userService.findUserById(req.currentUser._id as string);
+    const user = await userService.findUserById(objectIdToString(req.currentUser._id));
     if (!user) {
       res.status(404).json({ message: "User not found" });
       return;
@@ -56,7 +57,7 @@ export const updateProfile = async (
       return;
     }
 
-    const userId = req.currentUser._id as string;
+    const userId = objectIdToString(req.currentUser._id);
     const { name, username, bio, nationality, locality, age } = req.body;
 
     // Validar que el username no esté en uso por otro usuario
@@ -118,7 +119,7 @@ export const updateAvatar = async (
       return;
     }
 
-    const userId = req.currentUser._id as string;
+    const userId = objectIdToString(req.currentUser._id);
     const { avatar } = req.body;
 
     if (!avatar) {
@@ -153,7 +154,7 @@ export const changePassword = async (
       return;
     }
 
-    const userId = req.currentUser._id as string;
+    const userId = objectIdToString(req.currentUser._id);
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {

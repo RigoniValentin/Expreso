@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import path from "path";
 import fs from "fs";
+import { getSingleParam } from "@utils/requestParams";
 
 // Tipos para multer
 interface MulterRequest extends Request {
@@ -230,7 +231,7 @@ export const uploadCoverImage = async (req: MulterRequest, res: Response): Promi
 // Eliminar imagen
 export const deleteImage = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { fileName } = req.params;
+    const fileName = getSingleParam(req.params.fileName);
 
     if (!fileName) {
       res.status(400).json({

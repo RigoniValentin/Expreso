@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { VideosService } from "@services/videosService";
 import { VideoRepository } from "@repositories/videosRepository";
 import { Video } from "types/VideosTypes";
+import { getSingleParam } from "@utils/requestParams";
 
 const videosService = new VideosService(new VideoRepository());
 
@@ -42,7 +43,7 @@ export const findVideoById = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const video = await videosService.findVideoById(id);
     if (!video) {
       res.status(404).json({ message: "Video not found" });
@@ -59,7 +60,7 @@ export const updateVideo = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const data = req.body;
     const updatedVideo = await videosService.updateVideo(id, data);
     if (!updatedVideo) {
@@ -108,7 +109,7 @@ export const deleteVideo = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getSingleParam(req.params.id);
     const deleted = await videosService.deleteVideo(id);
     if (!deleted) {
       res.status(404).json({ message: "Video not found" });
