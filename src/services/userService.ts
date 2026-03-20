@@ -33,6 +33,19 @@ export class UserService implements IUserService {
     return this.userRepository.update(id, user);
   }
 
+  async updateUserCapacitationsByEmail(
+    email: string,
+    capacitations: Pick<User, "capSeresArte" | "capThr" | "capPhr">
+  ): Promise<User | null> {
+    return await UserModel.findOneAndUpdate(
+      { email: email.trim().toLowerCase() },
+      capacitations,
+      { new: true }
+    )
+      .populate("roles")
+      .exec();
+  }
+
   async deleteUser(id: string): Promise<boolean> {
     return this.userRepository.delete(id);
   }
@@ -44,17 +57,5 @@ export class UserService implements IUserService {
     }
     // Comprueba si la fecha de expiración es mayor a la fecha actual
     return new Date(user.subscription.expirationDate) > new Date();
-  }
-
-  // Nuevo método para actualizar las capacitaciones por email
-  async updateUserCapacitationsByEmail(
-    email: string,
-    capacitations: { capSeresArte: boolean; capThr: boolean; capPhr: boolean }
-  ): Promise<User | null> {
-    const user = await this.findUserByEmail(email);
-    if (!user) {
-      return null;
-    }
-    return this.userRepository.update(user.id, capacitations);
   }
 }

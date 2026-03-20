@@ -1,362 +1,259 @@
 import { HOST, PAYPAL_API, PAYPAL_API_CLIENT, PAYPAL_API_SECRET } from "app";
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import axios from "axios";
-import { UserService } from "@services/userService";
-import { UserRepository } from "@repositories/userRepository";
-import { RolesRepository } from "@repositories/rolesRepository";
-import { RolesService } from "@services/rolesService";
-import { Preference, MercadoPagoConfig } from "mercadopago";
+import { PaymentModel } from "../models/Payment";
+import { PIBGroupModel } from "../models/PIBGroup";
+import { EABModel } from "../models/EAB";
+import mongoose from "mongoose";
 
-// Crear una instancia de UserServicev
-const userRepository = new UserRepository();
-const userService = new UserService(userRepository);
-
-// Crear una instancia de RolesService
-const rolesRepository = new RolesRepository();
-const rolesService = new RolesService(new RolesRepository());
-
-// Agrega credenciales MP basadas en el entorno (producción o test)
-const MP_ACCESS_TOKEN_ENV =
-  process.env.NODE_ENV === "production"
-    ? process.env.MP_ACCESS_TOKEN
-    : process.env.MP_ACCESS_TOKENtest;
-const MP_PUBLIC_KEY_ENV =
-  process.env.NODE_ENV === "production"
-    ? process.env.MP_PUBLIC_KEY
-    : process.env.MP_PUBLIC_KEYtest;
-
-const mercadoPagoClient = new MercadoPagoConfig({
-  accessToken: MP_ACCESS_TOKEN_ENV as string,
-});
-
-//#region PayPal
-export const createOrder = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const userId = req.currentUser.id;
-
-  // Valida si el usuario ya tiene una suscripción activa
-  if (await userService.hasActiveSubscription(userId)) {
-    res
-      .status(400)
-      .json({ message: "El usuario ya tiene una suscripción activa" });
-    return;
-  }
-
-  const baseUrl =
-    process.env.NODE_ENV === "production"
-      ? "https://pilatestransmissionsarah.com"
-      : "https://pilatestransmissionsarah.com";
-
-  const order = {
-    intent: "CAPTURE",
-    purchase_units: [
-      {
-        amount: {
-          currency_code: "USD",
-          value: "16.00",
-        },
-      },
-    ],
-    application_context: {
-      brand_name: "Pilates Transmission Sarah",
-      landing_page: "NO_PREFERENCE",
-      user_action: "PAY_NOW",
-      return_url: `${baseUrl}/api/v1/capture-order?state=${userId}`, // Ruta del backend para capturar la orden
-      cancel_url: `${baseUrl}/cancel-payment`, // Ruta del backend para manejar cancelaciones
-    },
-  };
-
+// Helper: Obtener access token de PayPal
+const getPayPalAccessToken = async (): Promise<string> => {
   const params = new URLSearchParams();
   params.append("grant_type", "client_credentials");
-
-  const {
-    data: { access_token },
-  } = await axios.post(`${PAYPAL_API}/v1/oauth2/token`, params, {
+  const { data } = await axios.post(`${PAYPAL_API}/v1/oauth2/token`, params, {
     auth: {
       username: PAYPAL_API_CLIENT!,
       password: PAYPAL_API_SECRET!,
     },
   });
-
-  const response = await axios.post(`${PAYPAL_API}/v2/checkout/orders`, order, {
-    headers: {
-      Authorization: `Bearer ${access_token}`,
-    },
-  });
-  console.log(response.data);
-
-  res.json(response.data);
+  return data.access_token;
 };
 
-export const captureOrder = async (
+// Helper: Inscribir usuario en producto tras pago aprobado
+const enrollUserInProduct = async (
+  userId: mongoose.Types.ObjectId,
+  productType: "pib" | "eab",
+  productId: string,
+  paymentPlan: "full" | "monthly",
+  installmentNumber: number
+) => {
+  if (productType === "pib") {
+    const group = await PIBGroupModel.findById(productId);
+    if (!group) throw new Error("Grupo PIB no encontrado");
+
+    const participantIndex = group.participants.findIndex(
+      (p) => p.userId.toString() === userId.toString()
+    );
+
+    if (paymentPlan === "full") {
+      if (participantIndex === -1) {
+        group.participants.push({
+          userId,
+          enrolledAt: new Date(),
+          paymentPlan: "full",
+          paidInstallments: 1,
+          accessActive: true,
+          progress: { currentModule: 1, currentWeek: 1, completedVideos: [] },
+        });
+      } else {
+        group.participants[participantIndex].accessActive = true;
+        group.participants[participantIndex].paymentPlan = "full";
+        group.participants[participantIndex].paidInstallments = 1;
+      }
+    } else {
+      if (participantIndex === -1) {
+        const nextDue = new Date();
+        nextDue.setMonth(nextDue.getMonth() + 1);
+        group.participants.push({
+          userId,
+          enrolledAt: new Date(),
+          paymentPlan: "monthly",
+          paidInstallments: 1,
+          nextPaymentDue: nextDue,
+          accessActive: true,
+          progress: { currentModule: 1, currentWeek: 1, completedVideos: [] },
+        });
+      } else {
+        const participant = group.participants[participantIndex];
+        participant.paidInstallments = installmentNumber;
+        participant.accessActive = true;
+        if (installmentNumber < 4) {
+          const nextDue = new Date();
+          nextDue.setMonth(nextDue.getMonth() + 1);
+          participant.nextPaymentDue = nextDue;
+        } else {
+          participant.nextPaymentDue = undefined;
+        }
+      }
+    }
+    await group.save();
+  } else if (productType === "eab") {
+    const eab = await EABModel.findById(productId);
+    if (!eab) throw new Error("Experiencia EAB no encontrada");
+
+    const alreadyEnrolled = eab.participants.some(
+      (p) => p.userId.toString() === userId.toString()
+    );
+
+    if (!alreadyEnrolled) {
+      eab.participants.push({
+        userId,
+        enrolledAt: new Date(),
+        progress: { currentModule: 1, completedVideos: [] },
+      });
+      await eab.save();
+    }
+  }
+};
+
+//#region PayPal - Crear orden para productos PIB/EAB
+export const createPayPalOrder = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.currentUser?._id;
+    if (!userId) {
+      res.status(401).json({ message: "Usuario no autenticado" });
+      return;
+    }
+
+    const { productType, productId, productName, amount, paymentPlan, installmentNumber } = req.body;
+
+    if (!productType || !productId || !productName || !amount) {
+      res.status(400).json({ message: "Faltan datos del producto" });
+      return;
+    }
+
+    if (!["pib", "eab"].includes(productType)) {
+      res.status(400).json({ message: "Tipo de producto inválido" });
+      return;
+    }
+
+    // Verificar que el producto existe
+    if (productType === "pib") {
+      const group = await PIBGroupModel.findById(productId);
+      if (!group) {
+        res.status(404).json({ message: "Grupo PIB no encontrado" });
+        return;
+      }
+    } else {
+      const eab = await EABModel.findById(productId);
+      if (!eab) {
+        res.status(404).json({ message: "Experiencia EAB no encontrada" });
+        return;
+      }
+    }
+
+    const plan = paymentPlan || "full";
+    const instNumber = parseInt(installmentNumber) || 1;
+
+    // Codificar metadata en el state para la URL de retorno
+    const stateData = Buffer.from(JSON.stringify({
+      userId: userId.toString(),
+      productType,
+      productId,
+      productName,
+      amount,
+      paymentPlan: plan,
+      installmentNumber: instNumber,
+      totalInstallments: plan === "full" ? 1 : 4,
+    })).toString("base64url");
+
+    const access_token = await getPayPalAccessToken();
+
+    const order = {
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: {
+            currency_code: "USD",
+            value: Number(amount).toFixed(2),
+          },
+          description: productName,
+        },
+      ],
+      application_context: {
+        brand_name: "Expreso Mi Arte Nehilak",
+        landing_page: "NO_PREFERENCE",
+        user_action: "PAY_NOW",
+        return_url: `${HOST}/api/v1/paypal/capture-order?state=${stateData}`,
+        cancel_url: `${HOST}/productos`,
+      },
+    };
+
+    const response = await axios.post(`${PAYPAL_API}/v2/checkout/orders`, order, {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+
+    res.json({ approvalUrl: response.data.links.find((l: any) => l.rel === "approve")?.href });
+  } catch (error) {
+    console.error("Error al crear orden PayPal:", error);
+    res.status(500).json({ message: "Error al crear la orden de PayPal" });
+  }
+};
+//#endregion
+
+//#region PayPal - Capturar orden aprobada
+export const capturePayPalOrder = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   const { token, state } = req.query;
 
   try {
-    const response = await axios.post(
+    if (!token || !state) {
+      res.redirect(`${HOST}/productos?paypal=error`);
+      return;
+    }
+
+    // Decodificar metadata del state
+    let stateData: any;
+    try {
+      stateData = JSON.parse(Buffer.from(state as string, "base64url").toString());
+    } catch {
+      res.redirect(`${HOST}/productos?paypal=error`);
+      return;
+    }
+
+    const { userId, productType, productId, productName, amount, paymentPlan, installmentNumber, totalInstallments } = stateData;
+
+    // Capturar el pago en PayPal
+    const access_token = await getPayPalAccessToken();
+    const captureResponse = await axios.post(
       `${PAYPAL_API}/v2/checkout/orders/${token}/capture`,
       {},
-      {
-        auth: {
-          username: PAYPAL_API_CLIENT!,
-          password: PAYPAL_API_SECRET!,
-        },
-      }
+      { headers: { Authorization: `Bearer ${access_token}` } }
     );
 
-    console.log(response.data);
-
-    // Verificar que la respuesta contiene la información esperada
-    if (
-      !response.data ||
-      !response.data.payer ||
-      !response.data.payer.email_address
-    ) {
-      res.status(400).json({ message: "Invalid response from PayPal" });
+    if (captureResponse.data.status !== "COMPLETED") {
+      res.redirect(`${HOST}/productos?paypal=error`);
       return;
     }
 
-    // Obtener el ID del usuario desde el token de sesión
-    const userId = state as string;
+    const transactionId = captureResponse.data.id;
 
-    // Buscar al usuario en la base de datos
-    const user = await userService.findUserById(userId);
-    if (!user) {
-      res.status(404).json({ message: "User not found" });
-      return;
-    }
-
-    // Buscar el rol "paid_user" en la base de datos utilizando RolesService
-    const paidUserRole = await rolesService.findRoles({ name: "user" });
-    if (!paidUserRole || paidUserRole.length === 0) {
-      res.status(500).json({ message: "Role 'user' not found" });
-      return;
-    }
-
-    // Actualizar la suscripción del usuario y agregar el rol "paid_user"
-    const transactionId = response.data.id;
-    const purchaseUnit = response.data.purchase_units?.[0];
-    const captureData = purchaseUnit?.payments?.captures?.[0];
-    const rawPaymentDate = captureData?.create_time;
-
-    if (!rawPaymentDate) {
-      console.error("Payment capture date not found:", rawPaymentDate);
-      res
-        .status(500)
-        .json({ message: "Payment date not found in PayPal response" });
-      return;
-    }
-
-    const paymentDate = new Date(rawPaymentDate);
-    if (isNaN(paymentDate.getTime())) {
-      console.error("Invalid payment date from PayPal:", rawPaymentDate);
-      res.status(500).json({ message: "Invalid payment date from PayPal" });
-      return;
-    }
-    const expirationDate = new Date(paymentDate);
-    expirationDate.setDate(expirationDate.getDate() + 30);
-
-    user.roles = [paidUserRole[0]]; // Agregar el rol "paid_user"
-    user.subscription = {
-      transactionId,
-      paymentDate,
-      expirationDate,
-    };
-    await user.save();
-
-    res.redirect(`${HOST}/pagoAprobado`);
-  } catch (error) {
-    console.error("Error capturing order:", error);
-    res.status(500).json({ message: "Error processing payment", error });
-  }
-};
-
-export const cancelPayment = (req: Request, res: Response) => {
-  res.redirect("/");
-};
-//#endregion
-
-//#region MercadoPago
-// Esta función crea la preferencia y solo devuelve el ID para que el cliente sea redirigido a MP.
-export const createPreference = async (req: Request, res: Response) => {
-  const userId = req.currentUser.id;
-
-  // Valida si el usuario ya tiene una suscripción activa
-  if (await userService.hasActiveSubscription(userId)) {
-    res
-      .status(400)
-      .json({ message: "El usuario ya tiene una suscripción activa" });
-    return;
-  }
-
-  try {
-    const successUrl =
-      process.env.NODE_ENV === "production"
-        ? `https://pilatestransmissionsarah.com/pagoAprobado?state=${userId}`
-        : `http://localhost:3010/pagoAprobado?state=${userId}`;
-
-    const body = {
-      items: req.body.map((item: any) => ({
-        title: item.title,
-        quantity: item.quantity,
-        currency_id: "ARS",
-        unit_price: item.unit_price,
-      })),
-      back_urls: {
-        success: successUrl,
-        failure: `https://martin-juncos.github.io/failure/`,
-        pending: `https://martin-juncos.github.io/pending/`,
-      },
-      auto_return: "approved",
-    };
-
-    const preference = new Preference(mercadoPagoClient);
-    const result = await preference.create({ body });
-    console.log("Preference created:", result.id);
-    // Always return the access token for production to ensure proper authorization
-    console.log("Preference created:", result.id);
-    res.json({ id: result.id });
-  } catch (error) {
-    console.log("Error al procesar el pago (MP) :>>", error);
-    res.status(500).json({ message: "Error al procesar el pago", error });
-  }
-};
-
-// Este nuevo endpoint se ejecuta una vez confirmado el pago en MercadoPago
-export const capturePreference = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  console.log(
-    "capturePreference: Function called with query params",
-    req.query
-  );
-
-  // Se asume que MercadoPago redirige con al menos: state (userId), payment_id y status
-  const { state, payment_id, status } = req.query;
-  console.log(
-    "capturePreference: Extracted state =",
-    state,
-    "payment_id =",
-    payment_id,
-    "status =",
-    status
-  );
-
-  if (status !== "approved") {
-    console.log("capturePreference: Payment status not approved");
-    res.status(400).json({ message: "Payment not approved" });
-    return;
-  }
-
-  try {
-    const userId = state as string;
-    const user = await userService.findUserById(userId);
-    console.log("capturePreference: User lookup for", userId, "result:", user);
-    if (!user) {
-      console.log("capturePreference: User not found");
-      res.status(404).json({ message: "User not found" });
-      return;
-    }
-
-    const paidUserRole = await rolesService.findRoles({ name: "user" });
-    console.log("capturePreference: Retrieved role 'user':", paidUserRole);
-    if (!paidUserRole || paidUserRole.length === 0) {
-      console.log("capturePreference: Role 'user' not found");
-      res.status(500).json({ message: "Role 'user' not found" });
-      return;
-    }
-
-    const paymentDate = new Date();
-    const expirationDate = new Date(paymentDate);
-    expirationDate.setDate(expirationDate.getDate() + 30);
-    console.log(
-      "capturePreference: Calculated paymentDate =",
-      paymentDate,
-      "and expirationDate =",
-      expirationDate
-    );
-
-    user.roles = [paidUserRole[0]];
-    user.subscription = {
-      transactionId: payment_id as string,
-      paymentDate,
-      expirationDate,
-    };
-    await user.save();
-
-    const successUrl =
-      process.env.NODE_ENV === "production"
-        ? `https://pilatestransmissionsarah.com/pagoAprobado?state=${userId}`
-        : `http://localhost:3010/pagoAprobado?state=${userId}`;
-    console.log("capturePreference: Redirecting to", successUrl);
-    res.redirect(successUrl);
-  } catch (error) {
-    console.log("capturePreference: Error capturing MP payment:", error);
-    res.status(500).json({ message: "Error processing MP payment", error });
-  }
-};
-//#endregion
-
-export const applyCoupon = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    // Se espera recibir { coupon: string } en el body
-    const { coupon } = req.body;
-    const userId = req.currentUser.id;
-
-    // Validar el cupón (ejemplo: "INVITECOUPON2025" es el cupón válido)
-    if (coupon !== "INVITECOUPON2025") {
-      res.status(400).json({ message: "Cupón inválido" });
-      return;
-    }
-
-    const user = await userService.findUserById(userId);
-    if (!user) {
-      res.status(404).json({ message: "Usuario no encontrado" });
-      return;
-    }
-
-    // Verificar si el cupón ya fue utilizado
-    if (user.couponUsed) {
-      res.status(400).json({ message: "El cupón ya fue utilizado" });
-      return;
-    }
-
-    // Buscar el rol "user" (o el rol deseado) en la base de datos
-    const paidUserRole = await rolesService.findRoles({ name: "user" });
-    if (!paidUserRole || paidUserRole.length === 0) {
-      res.status(500).json({ message: "Rol 'user' no encontrado" });
-      return;
-    }
-
-    const paymentDate = new Date();
-    // Configurar la fecha de expiración hasta el 31 de julio de 2025 (UTC)
-    const expirationDate = new Date("2025-07-31T23:59:59Z");
-
-    // Actualizar el rol, la suscripción y marcar que se utilizó el cupón
-    user.roles = [paidUserRole[0]];
-    user.subscription = {
-      transactionId: coupon, // Se puede usar el cupón como identificador de transacción
-      paymentDate,
-      expirationDate,
-    };
-    user.couponUsed = true; // Marcar que ya se utilizó el cupón
-    await user.save();
-
-    res.json({
-      message: "Suscripción actualizada con cupón",
-      subscription: user.subscription,
+    // Crear registro de pago aprobado
+    await PaymentModel.create({
+      userId: new mongoose.Types.ObjectId(userId),
+      productType,
+      productId: new mongoose.Types.ObjectId(productId),
+      productName,
+      amount: Number(amount),
+      currency: "USD",
+      paymentMethod: "paypal",
+      paymentPlan,
+      installmentNumber,
+      totalInstallments,
+      referenceNumber: transactionId,
+      receiptUrl: "",
+      status: "approved",
+      reviewedAt: new Date(),
     });
+
+    // Inscribir al usuario automáticamente
+    await enrollUserInProduct(
+      new mongoose.Types.ObjectId(userId),
+      productType,
+      productId,
+      paymentPlan,
+      installmentNumber
+    );
+
+    res.redirect(`${HOST}/pagoAprobado?method=paypal&product=${encodeURIComponent(productName)}`);
   } catch (error) {
-    console.error("Error applying coupon:", error);
-    res.status(500).json({ message: "Error al aplicar el cupón", error });
+    console.error("Error al capturar orden PayPal:", error);
+    res.redirect(`${HOST}/productos?paypal=error`);
   }
 };
+//#endregion

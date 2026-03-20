@@ -48,6 +48,14 @@ const UserSchema: Schema = new Schema<User>(
     age: {
       type: Number,
     },
+    avatar: {
+      type: String,
+      default: "",
+    },
+    bio: {
+      type: String,
+      default: "",
+    },
     // Nuevos campos para capacitaciones:
     capSeresArte: { type: Boolean, default: false },
     capThr: { type: Boolean, default: false },

@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { NextFunction, Request, Response, Router } from "express";
 import {
   findUsers,
   findUserById,
@@ -23,6 +23,12 @@ import {
   forgotPassword,
   resetPassword,
 } from "@controllers/auth/authControllers";
+import {
+  getProfile,
+  updateProfile,
+  updateAvatar,
+  changePassword,
+} from "@controllers/profileController";
 import { getPermissions, verifyToken } from "@middlewares/auth";
 import { checkRoles } from "@middlewares/roles";
 import { checkSubscription } from "@middlewares/checkSubscription";
@@ -49,32 +55,63 @@ import {
   getTrainings,
 } from "@controllers/trainingController";
 import {
-  applyCoupon,
-  cancelPayment,
-  captureOrder,
-  capturePreference,
-  createOrder,
-  createPreference,
+  createSubscription,
+  getMySubscription,
+  pauseSubscription,
+  cancelSubscription,
+  getAllCourses,
+  getCourseBySlug,
+  getCoursesByArea,
+  createCourse,
+  getMyProgress,
+  markContentCompleted,
+  addJournalEntry,
+  getJournalEntries,
+  getDashboard,
+  getDailyContent,
+  getContentById,
+  getUpcomingLiveClasses,
+  registerForLiveClass,
+  unregisterFromLiveClass,
+  getMyLiveClasses,
+  getAllPosts,
+  createPost,
+  likePost,
+  addComment,
+  getTestimonials,
+  createTestimonial,
+} from "@controllers/nehilakController";
+import {
+  createPayPalOrder,
+  capturePayPalOrder,
 } from "@controllers/paymentController";
 import { sendResetPasswordEmail } from "@services/emailService";
 import { getExamples, saveExamples } from "@controllers/exampleController";
 import { getChatHistory, deleteChatHistory } from "@controllers/chatController";
 import { get } from "mongoose";
+import programaIntegralRoutes from "./programaIntegralRoutes";
+import blogRoutes from "./blogRoutes";
+import uploadRoutes from "./uploadRoutes";
+import testimonialRoutes from "./testimonialRoutes";
+import pibRoutes from "./pibRoutes";
+import eabRoutes from "./eabRoutes";
+import transferPaymentRoutes from "./transferPaymentRoutes";
+import siteConfigRoutes from "./siteConfigRoutes";
 
-const router = Router();
+const router: any = Router();
 
 export default () => {
-  router.get("/health", (req, res) => {
+  router.get("/health", (req: Request, res: Response) => {
     res.send("Api is healthy");
   });
 
   //#region Auth Routes
-  router.post("/auth/register", checkRoles, registerUser);
+  router.post("/auth/register", registerUser);
   router.post("/auth/login", loginUser);
   router.get(
     "/auth/refresh",
     verifyToken,
-    (req, res, next) => {
+    (req: Request, res: Response, next: NextFunction) => {
       res.set("Cache-Control", "no-store");
       next();
     },
@@ -82,6 +119,13 @@ export default () => {
   );
   router.post("/auth/forgot-password", forgotPassword);
   router.post("/auth/reset-password", resetPassword);
+  //#endregion
+
+  //#region Profile Routes
+  router.get("/profile", verifyToken, getProfile);
+  router.put("/profile", verifyToken, updateProfile);
+  router.put("/profile/avatar", verifyToken, updateAvatar);
+  router.put("/profile/password", verifyToken, changePassword);
   //#endregion
 
   //#region User Routes
@@ -198,18 +242,107 @@ export default () => {
   router.get("/trainings", getTrainings);
   // #endregion
 
-  // #region Payments Routes
-  router.get("/create-order", verifyToken, createOrder);
-  router.get("/capture-order", captureOrder);
-  router.get("/cancel-order", cancelPayment);
+  // #region Nehilak Platform Routes
 
-  router.post("/create-preference", verifyToken, createPreference);
-  router.get("/capture-preference", capturePreference);
+  // Subscription Routes
+  router.post("/nehilak/subscriptions", verifyToken, createSubscription);
+  router.get("/nehilak/subscriptions/me", verifyToken, getMySubscription);
+  router.put(
+    "/nehilak/subscriptions/:id/pause",
+    verifyToken,
+    pauseSubscription
+  );
+  router.put(
+    "/nehilak/subscriptions/:id/cancel",
+    verifyToken,
+    cancelSubscription
+  );
+
+  // Course Routes
+  router.get("/nehilak/courses", getAllCourses);
+  router.get("/nehilak/courses/area/:area", getCoursesByArea);
+  router.get("/nehilak/courses/:slug", verifyToken, getCourseBySlug);
+  router.post(
+    "/nehilak/courses",
+    verifyToken,
+    getPermissions,
+    checkRoles,
+    createCourse
+  );
+
+  // Progress Routes
+  router.get("/nehilak/progress/me", verifyToken, getMyProgress);
+  router.post("/nehilak/progress/complete", verifyToken, markContentCompleted);
+  router.post("/nehilak/progress/journal", verifyToken, addJournalEntry);
+  router.get("/nehilak/progress/journal", verifyToken, getJournalEntries);
+  router.get("/nehilak/dashboard", verifyToken, getDashboard);
+
+  // Content Routes
+  router.get("/nehilak/content/daily", getDailyContent);
+  router.get("/nehilak/content/:id", verifyToken, getContentById);
+
+  // Live Class Routes
+  router.get(
+    "/nehilak/live-classes/upcoming",
+    verifyToken,
+    getUpcomingLiveClasses
+  );
+  router.get("/nehilak/live-classes/mine", verifyToken, getMyLiveClasses);
+  router.post(
+    "/nehilak/live-classes/:id/register",
+    verifyToken,
+    registerForLiveClass
+  );
+  router.delete(
+    "/nehilak/live-classes/:id/register",
+    verifyToken,
+    unregisterFromLiveClass
+  );
+
+  // Community Routes
+  router.get("/nehilak/community/posts", getAllPosts);
+  router.post("/nehilak/community/posts", verifyToken, createPost);
+  router.post("/nehilak/community/posts/:id/like", verifyToken, likePost);
+  router.post("/nehilak/community/posts/:id/comments", verifyToken, addComment);
+
+  // Testimonial Routes
+  router.get("/nehilak/testimonials", getTestimonials);
+  router.post("/nehilak/testimonials", verifyToken, createTestimonial);
+
+  // Programa Integral Routes
+  router.use("/nehilak/programa-integral", programaIntegralRoutes);
+
+  // Blog Routes
+  router.use("/blog", blogRoutes);
+
+  // Upload Routes
+  router.use("/upload", uploadRoutes);
+
+  // Testimonial Routes
+  router.use("/testimonials", testimonialRoutes);
+
+  // PIB (Programa Integral de Bienestar) Routes
+  router.use("/pib", pibRoutes);
+
+  // EAB (Experiencias de Aprendizaje para el Bienestar) Routes
+  router.use("/eab", eabRoutes);
+
+  // Transfer Payments (Transferencias y Pago Móvil) Routes
+  router.use("/transfer-payments", transferPaymentRoutes);
+
+  // Site Config Routes
+  router.use("/site-config", siteConfigRoutes);
+
+  // #endregion
+
+  // #region PayPal Routes
+  router.post("/paypal/create-order", verifyToken, createPayPalOrder);
+  router.get("/paypal/capture-order", capturePayPalOrder);
   // #endregion
 
   // #region Email Routes
   // Route para enviar email a través del helper
-  router.post("/send-email", async (req, res) => {
+  router.post("/send-email", async (req: Request, res: Response) => {
     const { to, subject, text } = req.body;
     try {
       await sendResetPasswordEmail(to, text);
@@ -218,10 +351,6 @@ export default () => {
       res.status(500).send("Error sending email");
     }
   });
-  // #endregion
-
-  // #region Coupons Routes
-  router.post("/apply-coupon", verifyToken, applyCoupon);
   // #endregion
 
   // #region Example Routes

@@ -13,11 +13,11 @@ export const PAYPAL_API =
     : "https://api-m.sandbox.paypal.com";
 export const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
 
-const PORT = process.env.PORT || 3010;
+const PORT = process.env.PORT || 3017;
 export const HOST =
   process.env.NODE_ENV === "production"
-    ? process.env.HOST || "https://pilatestransmissionsarah.com"
-    : "http://localhost:" + PORT;
+    ? process.env.HOST || "https://expresomiartenehilak.com"
+    : "http://localhost:5173";
 
 httpServer.listen(PORT, () => {
   console.log(`Server (with Socket.IO) listening on port ${PORT}`);

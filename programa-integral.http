@@ -1,0 +1,35 @@
+### Variables
+@baseUrl = http://localhost:3010/api/v1
+@authToken = tu-token-aqui
+
+### Obtener información del Programa Integral (Público)
+GET {{baseUrl}}/nehilak/programa-integral
+Content-Type: application/json
+
+### Crear Programa Integral (Admin)
+POST {{baseUrl}}/nehilak/programa-integral
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "title": "Programa Integral en Bienestar",
+  "subtitle": "Propuesta de acompañamiento vivencial para la expansión del ser humano",
+  "description": [
+    "El Programa Integral en Bienestar (PIB) es una propuesta de acompañamiento humano..."
+  ],
+  "mainQuote": "No venimos a arreglarnos, venimos a habitarnos plenamente.",
+  "isActive": true
+}
+
+### Actualizar Programa Integral (Admin)
+PUT {{baseUrl}}/nehilak/programa-integral/PROGRAMA_ID
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "title": "Programa Integral en Bienestar - Actualizado"
+}
+
+### Eliminar Programa Integral (Admin)
+DELETE {{baseUrl}}/nehilak/programa-integral/PROGRAMA_ID
+Authorization: Bearer {{authToken}}

@@ -1,13 +1,18 @@
 import { UserRepository } from "@repositories/userRepository";
 import { UserService } from "@services/userService";
+import { RolesRepository } from "@repositories/rolesRepository";
+import { RolesService } from "@services/rolesService";
 import { Request, Response } from "express";
 import { IUserRepository, IUserService, User } from "types/UserTypes";
+import { IRolesRepository, IRolesService } from "types/RolesTypes";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { sendResetPasswordEmail } from "@services/emailService";
 
 const userRepository: IUserRepository = new UserRepository();
 const userService: IUserService = new UserService(userRepository);
+const rolesRepository: IRolesRepository = new RolesRepository();
+const rolesService: IRolesService = new RolesService(rolesRepository);
 
 export const registerUser = async (
   req: Request,
@@ -21,15 +26,27 @@ export const registerUser = async (
       return;
     }
 
+    // Buscar el rol "guest" en la base de datos
+    const guestRoles = await rolesService.findRoles({ name: "guest" });
+    const guestRole = guestRoles[0];
+
+    if (!guestRole) {
+      res.status(500).json({ message: "Guest role not found in database" });
+      return;
+    }
+
     const newUser = await userService.createUser({
       ...req.body,
-      role: "guest",
+      roles: [guestRole._id],
     });
 
     res.status(201).json(newUser);
-  } catch (error) {
+  } catch (error: any) {
     console.log("error :>> ", error);
-    res.status(500).json(error);
+    res.status(500).json({
+      message: error.message || "Error creating user",
+      error: process.env.NODE_ENV === "development" ? error : undefined,
+    });
   }
 };
 
@@ -48,18 +65,30 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Populate roles para obtener la información completa
+    await user.populate("roles");
+
+    // Debug: mostrar roles del usuario
+    console.log("Login - User roles populated:", user.roles);
+
+    // Extraer nombres de roles y permisos
+    const roleNames = user.roles?.map((role: any) => role.name) || ["guest"];
+    console.log("Login - Role names extracted:", roleNames);
+    
+    const permissions =
+      user.roles?.flatMap((role: any) => role.permissions || []) || [];
+
     const token = jwt.sign(
       {
         id: user._id,
+        name: user.name,
         email: user.email,
         username: user.username,
-        roles: user.roles,
+        roles: roleNames,
+        permissions: permissions,
         nationality: user.nationality,
         locality: user.locality,
         age: user.age,
-        capSeresArte: user.capSeresArte || false,
-        capThr: user.capThr || false,
-        capPhr: user.capPhr || false,
       },
       jwtSecret,
       { expiresIn: "3h" }
@@ -93,13 +122,26 @@ export const refreshToken = async (
       res.status(404).json({ message: "User not found" });
       return;
     }
+
+    // Populate roles para obtener la información completa
+    await updatedUser.populate("roles");
+
+    // Extraer nombres de roles y permisos
+    const roleNames = updatedUser.roles?.map((role: any) => role.name) || [
+      "guest",
+    ];
+    const permissions =
+      updatedUser.roles?.flatMap((role: any) => role.permissions || []) || [];
+
     const jwtSecret = process.env.JWT_SECRET as string;
     const newToken = jwt.sign(
       {
         id: updatedUser._id,
+        name: updatedUser.name,
         email: updatedUser.email,
         username: updatedUser.username,
-        roles: updatedUser.roles,
+        roles: roleNames,
+        permissions: permissions,
         nationality: updatedUser.nationality,
         locality: updatedUser.locality,
         age: updatedUser.age,

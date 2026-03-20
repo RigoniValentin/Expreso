@@ -6,7 +6,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/app.ts",
     "build": "tsc",
-    "start": "node dist/src/app.js"
+    "start": "node dist/src/app.js",
+    "seed": "ts-node-dev --transpile-only -r tsconfig-paths/register src/seed/seed.ts"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +26,7 @@
     "app": "src/app.ts"
   },
   "dependencies": {
+    "@types/multer": "^2.0.0",
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
     "cookie-parser": "^1.4.7",
@@ -36,8 +38,10 @@
     "module-alias": "^2.2.3",
     "mongoose": "^8.9.6",
     "morgan": "^1.10.0",
+    "multer": "^2.0.2",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.10.0",
+    "sharp": "^0.34.5",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {

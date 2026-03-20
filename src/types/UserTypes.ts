@@ -10,18 +10,19 @@ export interface User extends Document {
   nationality: string;
   locality: string;
   age: number;
+  avatar?: string;
+  bio?: string;
   roles?: Roles[];
   permissions?: string[];
-  // Nuevos campos para capacitaciones:
-  capSeresArte?: boolean;
-  capThr?: boolean;
-  capPhr?: boolean;
   subscription?: {
     transactionId: string;
     paymentDate: Date;
     expirationDate: Date;
   };
   couponUsed?: boolean;
+  capSeresArte?: boolean;
+  capThr?: boolean;
+  capPhr?: boolean;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
   comparePassword(password: string): Promise<boolean>;
@@ -39,10 +40,10 @@ export interface IUserService {
   findUserByEmail(email: string): Promise<User | null>;
   findUserByResetToken(token: string): Promise<User | null>;
   updateUser(id: string, user: Partial<User>): Promise<User | null>;
-  deleteUser(id: string): Promise<boolean>;
-  // Nuevo método para actualizar las capacitaciones usando el email del usuario
   updateUserCapacitationsByEmail(
     email: string,
-    capacitations: { capSeresArte: boolean; capThr: boolean; capPhr: boolean }
+    capacitations: Pick<User, "capSeresArte" | "capThr" | "capPhr">
   ): Promise<User | null>;
+  deleteUser(id: string): Promise<boolean>;
+  // Nuevo método para actualizar las capacitaciones usando el email del usuario
 }
