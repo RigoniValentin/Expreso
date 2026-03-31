@@ -25,3 +25,4 @@
     "types": "dist/src/types", 
     "app": "dist/src/app.js"
   },
+  

@@ -35,7 +35,7 @@ export const createPayment = async (req: Request, res: Response) => {
       return;
     }
 
-    if (!["transferencia", "pago_movil"].includes(paymentMethod)) {
+    if (!["transferencia", "pago_movil", "paypal"].includes(paymentMethod)) {
       res.status(400).json({ message: "Método de pago inválido" });
       return;
     }

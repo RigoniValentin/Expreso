@@ -541,7 +541,7 @@ export const enrollInEAB = async (req: Request, res: Response) => {
 // Obtener mis EABs inscriptos
 export const getMyEABs = async (req: Request, res: Response) => {
   try {
-    const userId = objectIdToString(req.currentUser?._id);
+    const userId = objectIdToString(req.currentUser?._id as string);
 
     const eabs = await EABModel.find({
       "participants.userId": userId,
@@ -570,7 +570,7 @@ export const updateEABProgress = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { currentModule, completedVideoId } = req.body;
-    const userId = objectIdToString(req.currentUser?._id);
+    const userId = objectIdToString(req.currentUser?._id as string);
 
     const eab = await EABModel.findById(id);
 
