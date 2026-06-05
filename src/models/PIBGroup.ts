@@ -186,9 +186,9 @@ const PIBGroupSchema: Schema = new Schema(
   { timestamps: true, versionKey: false }
 );
 
-// Middleware para calcular fecha de fin al establecer fecha de inicio
+// Middleware para calcular una fecha de fin por defecto al establecer fecha de inicio
 PIBGroupSchema.pre("save", function (next) {
-  if (this.isModified("startDate") && this.startDate) {
+  if (this.isModified("startDate") && this.startDate && !this.endDate) {
     const endDate = new Date(this.startDate as Date);
     endDate.setDate(endDate.getDate() + 16 * 7); // 16 semanas
     this.endDate = endDate;

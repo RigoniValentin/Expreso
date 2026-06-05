@@ -13,7 +13,7 @@
   "author": "",
   "license": "ISC",
   "description": "",
-    "_moduleAliases": {
+  "_moduleAliases": {
     "@server": "dist/src/server",
     "@config": "dist/src/config",
     "@services": "dist/src/services",

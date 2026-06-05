@@ -721,6 +721,83 @@ export const addVideoToWeek = async (req: Request, res: Response) => {
   }
 };
 
+// Actualizar video de una semana específica (Admin)
+export const updateVideoInWeek = async (req: Request, res: Response) => {
+  try {
+    const { moduleNumber, weekNumber, videoId } = req.params;
+    const { title, youtubeUrl, duration, description, order } = req.body;
+
+    const module = await PIBContentModel.findOne({ moduleNumber: getSingleNumberParam(moduleNumber) });
+
+    if (!module) {
+      return res.status(404).json({ message: "Módulo no encontrado" });
+    }
+
+    const weekNumberValue = getSingleNumberParam(weekNumber);
+    const weekIndex = module.weeklyContent.findIndex((w) => w.weekNumber === weekNumberValue);
+
+    if (weekIndex === -1) {
+      return res.status(404).json({ message: "Semana no encontrada" });
+    }
+
+    const video = module.weeklyContent[weekIndex].videos.find((v: any) => v._id?.toString() === videoId);
+    if (!video) {
+      return res.status(404).json({ message: "Video no encontrado" });
+    }
+
+    video.title = title ?? video.title;
+    video.youtubeUrl = youtubeUrl ?? video.youtubeUrl;
+    video.duration = duration ?? video.duration ?? "";
+    video.description = description ?? video.description ?? "";
+    video.order = order !== undefined && order !== null ? Number(order) : video.order;
+
+    await module.save();
+
+    res.status(200).json({
+      message: "Video actualizado exitosamente",
+      module,
+    });
+  } catch (error) {
+    console.error("Error al actualizar video:", error);
+    res.status(500).json({ message: "Error al actualizar el video" });
+  }
+};
+
+// Eliminar video de una semana específica (Admin)
+export const removeVideoFromWeek = async (req: Request, res: Response) => {
+  try {
+    const { moduleNumber, weekNumber, videoId } = req.params;
+
+    const module = await PIBContentModel.findOne({ moduleNumber: getSingleNumberParam(moduleNumber) });
+
+    if (!module) {
+      return res.status(404).json({ message: "Módulo no encontrado" });
+    }
+
+    const weekNumberValue = getSingleNumberParam(weekNumber);
+    const weekIndex = module.weeklyContent.findIndex((w) => w.weekNumber === weekNumberValue);
+
+    if (weekIndex === -1) {
+      return res.status(404).json({ message: "Semana no encontrada" });
+    }
+
+    const videos = module.weeklyContent[weekIndex].videos;
+    const videoIndex = videos.findIndex((v: any) => v._id?.toString() === videoId);
+
+    if (videoIndex === -1) {
+      return res.status(404).json({ message: "Video no encontrado" });
+    }
+
+    videos.splice(videoIndex, 1);
+    await module.save();
+
+    res.status(200).json({ message: "Video eliminado exitosamente" });
+  } catch (error) {
+    console.error("Error al eliminar video:", error);
+    res.status(500).json({ message: "Error al eliminar el video" });
+  }
+};
+
 // Obtener estado de pago del usuario para PIB
 export const getMyPIBPaymentStatus = async (req: Request, res: Response) => {
   try {
@@ -926,6 +1003,68 @@ export const addMaterialToWeek = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error al agregar material:", error);
     res.status(500).json({ message: "Error al agregar material" });
+  }
+};
+
+// Actualizar material de una semana
+export const updateMaterialInWeek = async (req: Request, res: Response) => {
+  try {
+    const { moduleNumber, weekNumber, materialId } = req.params;
+    const { title } = req.body;
+    const file = req.file;
+
+    const module = await PIBContentModel.findOne({ moduleNumber: getSingleNumberParam(moduleNumber) });
+    if (!module) {
+      return res.status(404).json({ message: "Módulo no encontrado" });
+    }
+
+    const weekNumberValue = getSingleNumberParam(weekNumber);
+    const weekIndex = module.weeklyContent.findIndex((w) => w.weekNumber === weekNumberValue);
+    if (weekIndex === -1) {
+      return res.status(404).json({ message: "Semana no encontrada" });
+    }
+
+    const materials = module.weeklyContent[weekIndex].materials;
+    const materialIndex = materials.findIndex((m: any) => m._id.toString() === materialId);
+    if (materialIndex === -1) {
+      return res.status(404).json({ message: "Material no encontrado" });
+    }
+
+    const material = materials[materialIndex];
+    let updatedMaterial = material as any;
+
+    if (file) {
+      const previousPath = path.join(__dirname, "../../", material.fileUrl);
+      if (fs.existsSync(previousPath)) {
+        fs.unlinkSync(previousPath);
+      }
+
+      const ext = path.extname(file.originalname);
+      const safeName = `m${moduleNumber}_w${weekNumber}_${Date.now()}${ext}`;
+      const filePath = path.join(MATERIALS_DIR, safeName);
+      fs.writeFileSync(filePath, file.buffer);
+
+      updatedMaterial = {
+        ...updatedMaterial.toObject?.(),
+        fileUrl: `/uploads/pib-materials/${safeName}`,
+        fileName: file.originalname,
+        fileType: file.mimetype,
+        fileSize: file.size,
+        uploadedAt: new Date(),
+      };
+    }
+
+    if (title) {
+      updatedMaterial.title = title;
+    }
+
+    materials[materialIndex] = updatedMaterial;
+    await module.save();
+
+    res.status(200).json({ message: "Material actualizado exitosamente", module });
+  } catch (error) {
+    console.error("Error al actualizar material:", error);
+    res.status(500).json({ message: "Error al actualizar el material" });
   }
 };
 

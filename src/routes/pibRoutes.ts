@@ -22,7 +22,10 @@ import {
   getPIBModule,
   updatePIBModule,
   addVideoToWeek,
+  updateVideoInWeek,
+  removeVideoFromWeek,
   addMaterialToWeek,
+  updateMaterialInWeek,
   removeMaterialFromWeek,
   getPIBColors,
 } from "../controllers/pibController";
@@ -98,8 +101,17 @@ router.put("/content/:moduleNumber", verifyToken, updatePIBModule);
 // Agregar video a una semana específica (admin)
 router.post("/content/:moduleNumber/week/:weekNumber/video", verifyToken, addVideoToWeek);
 
+// Actualizar video de una semana específica (admin)
+router.put("/content/:moduleNumber/week/:weekNumber/video/:videoId", verifyToken, updateVideoInWeek);
+
+// Eliminar video de una semana específica (admin)
+router.delete("/content/:moduleNumber/week/:weekNumber/video/:videoId", verifyToken, removeVideoFromWeek);
+
 // Agregar material a una semana específica (admin)
 router.post("/content/:moduleNumber/week/:weekNumber/material", verifyToken, materialUpload.single("file"), addMaterialToWeek);
+
+// Actualizar material de una semana específica (admin)
+router.put("/content/:moduleNumber/week/:weekNumber/material/:materialId", verifyToken, materialUpload.single("file"), updateMaterialInWeek);
 
 // Eliminar material de una semana específica (admin)
 router.delete("/content/:moduleNumber/week/:weekNumber/material/:materialId", verifyToken, removeMaterialFromWeek);
