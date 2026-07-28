@@ -14,7 +14,7 @@ if (!fs.existsSync(MATERIALS_DIR)) {
 }
 
 const getUnlockedWeek = (startDate?: Date, status?: string): number => {
-  if (status === "completed") return 16;
+  if (status === "completed" || status === "cancelled") return 16;
   if (!startDate || status === "pending") return 1;
 
   const now = new Date();
@@ -22,6 +22,9 @@ const getUnlockedWeek = (startDate?: Date, status?: string): number => {
   const week = Math.floor(diffInDays / 7) + 1;
   return Math.min(16, Math.max(1, week));
 };
+
+const isGroupFinalized = (status?: string): boolean =>
+  status === "completed" || status === "cancelled";
 
 const weekToModule = (weekNumber: number): number => {
   if (weekNumber <= 4) return 1;
@@ -423,12 +426,12 @@ export const getMyPIBGroup = async (req: Request, res: Response) => {
 
     const group = await PIBGroupModel.findOne({
       "participants.userId": userId,
-      status: { $in: ["pending", "active"] },
+      status: { $in: ["pending", "active", "completed", "cancelled"] },
     })
       .populate("participants.userId", "name username email avatar");
 
     if (!group) {
-      return res.status(404).json({ message: "No estás inscrito en ningún grupo activo" });
+      return res.status(404).json({ message: "No estás inscrito en ningún grupo" });
     }
 
     // Obtener el progreso del usuario
@@ -460,7 +463,7 @@ export const getMyPIBGroup = async (req: Request, res: Response) => {
         .select("moduleNumber weeklyContent.weekNumber weeklyContent.videos._id")
         .sort({ moduleNumber: 1 });
 
-      const unlockedWeek = myParticipant.accessActive
+      const unlockedWeek = isGroupFinalized(group.status) || myParticipant.accessActive
         ? getUnlockedWeek(group.startDate, group.status)
         : 0;
 
@@ -535,7 +538,7 @@ export const updateMyProgress = async (req: Request, res: Response) => {
 
     const participant = group.participants[participantIndex];
 
-    if (!participant.accessActive) {
+    if (!participant.accessActive && !isGroupFinalized(group.status)) {
       return res.status(403).json({
         message: "Tu acceso está temporalmente suspendido. Regulariza tu pago para continuar.",
       });
@@ -810,7 +813,7 @@ export const getMyPIBPaymentStatus = async (req: Request, res: Response) => {
 
     const group = await PIBGroupModel.findOne({
       "participants.userId": userId,
-      status: { $in: ["pending", "active"] },
+      status: { $in: ["pending", "active", "completed", "cancelled"] },
     });
 
     if (!group) {
