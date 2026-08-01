@@ -7,7 +7,7 @@ import path from "path";
 import fs from "fs";
 
 // Crear directorio de comprobantes si no existe
-const RECEIPTS_DIR = path.join(__dirname, "../../uploads/receipts");
+const RECEIPTS_DIR = path.join(process.cwd(), "uploads/receipts");
 if (!fs.existsSync(RECEIPTS_DIR)) {
   fs.mkdirSync(RECEIPTS_DIR, { recursive: true });
 }

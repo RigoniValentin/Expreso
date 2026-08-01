@@ -9,7 +9,7 @@ interface MulterRequest extends Request {
 }
 
 // Configuración de directorios
-const UPLOAD_DIR = path.join(__dirname, "../../uploads");
+const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 const BLOG_IMAGES_DIR = path.join(UPLOAD_DIR, "blog");
 
 // Crear directorios si no existen

@@ -5,7 +5,7 @@ import path from "path";
 import fs from "fs";
 import { getSingleNumberParam, objectIdToString } from "@utils/requestParams";
 
-const EAB_MATERIALS_DIR = path.join(__dirname, "../../uploads/eab-materials");
+const EAB_MATERIALS_DIR = path.join(process.cwd(), "uploads/eab-materials");
 
 // Crear directorio si no existe
 if (!fs.existsSync(EAB_MATERIALS_DIR)) {
@@ -463,7 +463,7 @@ export const removeMaterialFromModule = async (req: Request, res: Response) => {
 
     // Eliminar archivo del disco
     const material = materials[materialIndex];
-    const filePath = path.join(__dirname, "../../", material.fileUrl);
+    const filePath = path.join(process.cwd(), material.fileUrl);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }

@@ -8,7 +8,7 @@ import path from "path";
 import fs from "fs";
 import { getSingleNumberParam } from "@utils/requestParams";
 
-const MATERIALS_DIR = path.join(__dirname, "../../uploads/pib-materials");
+const MATERIALS_DIR = path.join(process.cwd(), "uploads/pib-materials");
 if (!fs.existsSync(MATERIALS_DIR)) {
   fs.mkdirSync(MATERIALS_DIR, { recursive: true });
 }
@@ -1037,7 +1037,7 @@ export const updateMaterialInWeek = async (req: Request, res: Response) => {
     let updatedMaterial = material as any;
 
     if (file) {
-      const previousPath = path.join(__dirname, "../../", material.fileUrl);
+      const previousPath = path.join(process.cwd(), material.fileUrl);
       if (fs.existsSync(previousPath)) {
         fs.unlinkSync(previousPath);
       }
@@ -1098,7 +1098,7 @@ export const removeMaterialFromWeek = async (req: Request, res: Response) => {
     }
 
     const material = materials[materialIndex];
-    const filePath = path.join(__dirname, "../../", material.fileUrl);
+    const filePath = path.join(process.cwd(), material.fileUrl);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
