@@ -35,7 +35,7 @@ const router: any = Router();
 
 const materialUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
 });
 
 // ==================== RUTAS PÚBLICAS ====================

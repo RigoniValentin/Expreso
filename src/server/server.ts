@@ -20,6 +20,18 @@ app.use("/uploads", express.static(path.join(projectRoot, "uploads")));
 // Registrar rutas de la API
 app.use("/api/v1", routes());
 
+// Manejador de errores JSON para que multer/Express no devuelvan HTML
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (res.headersSent) return next(err);
+  const status = err?.status || err?.statusCode || 500;
+  const message =
+    err?.code === "LIMIT_FILE_SIZE"
+      ? "El archivo supera el tamaño máximo permitido"
+      : err?.message || "Error interno del servidor";
+  console.error("[API ERROR]", err);
+  res.status(status).json({ message });
+});
+
 // Servir archivos estáticos
 if (process.env.NODE_ENV === "production") {
   app.use(
