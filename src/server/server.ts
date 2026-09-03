@@ -29,7 +29,11 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
       ? "El archivo supera el tamaño máximo permitido"
       : err?.message || "Error interno del servidor";
   console.error("[API ERROR]", err);
-  res.status(status).json({ message });
+  if (req.path.startsWith("/api")) {
+    res.status(status).json({ message });
+  } else {
+    res.status(status).send(message);
+  }
 });
 
 // Servir archivos estáticos

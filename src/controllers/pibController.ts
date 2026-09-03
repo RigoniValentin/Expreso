@@ -33,6 +33,61 @@ const weekToModule = (weekNumber: number): number => {
   return 4;
 };
 
+const WEEK_TITLE_FALLBACK: Record<number, string> = {
+  1: "Introducción a la Presencia",
+  2: "El Cuerpo como Territorio",
+  3: "Respiración Consciente",
+  4: "Autoobservación",
+  5: "Llaves Articulares",
+  6: "Cuerpo de Biología",
+  7: "Patrones Emocionales",
+  8: "Nutrición y Autocuidado",
+  9: "Conciencia Nucleada",
+  10: "Ambientes Vibracionales",
+  11: "Telepatía y Conexión",
+  12: "Energía en Movimiento",
+  13: "Integración de Cuerpos",
+  14: "Rituales Conscientes",
+  15: "Vínculos Auténticos",
+  16: "Cierre e Integración",
+};
+
+const findWeekIndex = (
+  module: any,
+  weekNumberValue: number
+): number => {
+  if (!Array.isArray(module?.weeklyContent)) return -1;
+  return module.weeklyContent.findIndex(
+    (w: any) => Number(w?.weekNumber) === weekNumberValue
+  );
+};
+
+const ensureWeekExists = async (
+  module: any,
+  weekNumberValue: number
+): Promise<number> => {
+  let weekIndex = findWeekIndex(module, weekNumberValue);
+  if (weekIndex !== -1) return weekIndex;
+
+  if (!Array.isArray(module.weeklyContent)) {
+    module.weeklyContent = [];
+  }
+  module.weeklyContent.push({
+    weekNumber: weekNumberValue,
+    title: WEEK_TITLE_FALLBACK[weekNumberValue] || `Semana ${weekNumberValue}`,
+    description: "",
+    videos: [],
+    materials: [],
+  });
+  module.weeklyContent.sort((a: any, b: any) => a.weekNumber - b.weekNumber);
+  await module.save();
+  weekIndex = findWeekIndex(module, weekNumberValue);
+  console.warn(
+    `[PIB] Auto-seeded missing week ${weekNumberValue} for module ${module.moduleNumber}`
+  );
+  return weekIndex;
+};
+
 const buildPIBVideoIndex = (modules: any[]) => {
   const videoMap = new Map<string, { moduleNumber: number; weekNumber: number }>();
   let totalVideos = 0;
@@ -696,9 +751,7 @@ export const addVideoToWeek = async (req: Request, res: Response) => {
     }
 
     const weekNumberValue = getSingleNumberParam(weekNumber);
-    const weekIndex = module.weeklyContent.findIndex(
-      (w) => w.weekNumber === weekNumberValue
-    );
+    const weekIndex = await ensureWeekExists(module, weekNumberValue);
 
     if (weekIndex === -1) {
       return res.status(404).json({ message: "Semana no encontrada" });
@@ -737,7 +790,7 @@ export const updateVideoInWeek = async (req: Request, res: Response) => {
     }
 
     const weekNumberValue = getSingleNumberParam(weekNumber);
-    const weekIndex = module.weeklyContent.findIndex((w) => w.weekNumber === weekNumberValue);
+    const weekIndex = await ensureWeekExists(module, weekNumberValue);
 
     if (weekIndex === -1) {
       return res.status(404).json({ message: "Semana no encontrada" });
@@ -778,13 +831,13 @@ export const removeVideoFromWeek = async (req: Request, res: Response) => {
     }
 
     const weekNumberValue = getSingleNumberParam(weekNumber);
-    const weekIndex = module.weeklyContent.findIndex((w) => w.weekNumber === weekNumberValue);
+    const weekIndex = await ensureWeekExists(module, weekNumberValue);
 
     if (weekIndex === -1) {
       return res.status(404).json({ message: "Semana no encontrada" });
     }
 
-    const videos = module.weeklyContent[weekIndex].videos;
+    const videos = module.weeklyContent[weekIndex].videos || [];
     const videoIndex = videos.findIndex((v: any) => v._id?.toString() === videoId);
 
     if (videoIndex === -1) {
@@ -975,15 +1028,13 @@ export const addMaterialToWeek = async (req: Request, res: Response) => {
     }
 
     const weekNumberValue = getSingleNumberParam(weekNumber);
-    const weekIndex = module.weeklyContent.findIndex(
-      (w) => w.weekNumber === weekNumberValue
-    );
+    const weekIndex = await ensureWeekExists(module, weekNumberValue);
     if (weekIndex === -1) {
       return res.status(404).json({ message: "Semana no encontrada" });
     }
 
     const ext = path.extname(file.originalname);
-    const safeName = `m${moduleNumber}_w${weekNumber}_${Date.now()}${ext}`;
+    const safeName = `m${moduleNumber}_w${weekNumberValue}_${Date.now()}${ext}`;
     const filePath = path.join(MATERIALS_DIR, safeName);
     fs.writeFileSync(filePath, file.buffer);
 
@@ -996,6 +1047,9 @@ export const addMaterialToWeek = async (req: Request, res: Response) => {
       uploadedAt: new Date(),
     };
 
+    if (!Array.isArray(module.weeklyContent[weekIndex].materials)) {
+      module.weeklyContent[weekIndex].materials = [];
+    }
     module.weeklyContent[weekIndex].materials.push(material as any);
     await module.save();
 
@@ -1003,9 +1057,12 @@ export const addMaterialToWeek = async (req: Request, res: Response) => {
     const savedMaterial = savedWeek.materials[savedWeek.materials.length - 1];
 
     res.status(201).json(savedMaterial);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al agregar material:", error);
-    res.status(500).json({ message: "Error al agregar material" });
+    res.status(500).json({
+      message: "Error al agregar material",
+      detail: error?.message || String(error),
+    });
   }
 };
 
@@ -1022,12 +1079,12 @@ export const updateMaterialInWeek = async (req: Request, res: Response) => {
     }
 
     const weekNumberValue = getSingleNumberParam(weekNumber);
-    const weekIndex = module.weeklyContent.findIndex((w) => w.weekNumber === weekNumberValue);
+    const weekIndex = await ensureWeekExists(module, weekNumberValue);
     if (weekIndex === -1) {
       return res.status(404).json({ message: "Semana no encontrada" });
     }
 
-    const materials = module.weeklyContent[weekIndex].materials;
+    const materials = module.weeklyContent[weekIndex].materials || [];
     const materialIndex = materials.findIndex((m: any) => m._id.toString() === materialId);
     if (materialIndex === -1) {
       return res.status(404).json({ message: "Material no encontrado" });
@@ -1043,7 +1100,7 @@ export const updateMaterialInWeek = async (req: Request, res: Response) => {
       }
 
       const ext = path.extname(file.originalname);
-      const safeName = `m${moduleNumber}_w${weekNumber}_${Date.now()}${ext}`;
+      const safeName = `m${moduleNumber}_w${weekNumberValue}_${Date.now()}${ext}`;
       const filePath = path.join(MATERIALS_DIR, safeName);
       fs.writeFileSync(filePath, file.buffer);
 
@@ -1082,14 +1139,12 @@ export const removeMaterialFromWeek = async (req: Request, res: Response) => {
     }
 
     const weekNumberValue = getSingleNumberParam(weekNumber);
-    const weekIndex = module.weeklyContent.findIndex(
-      (w) => w.weekNumber === weekNumberValue
-    );
+    const weekIndex = await ensureWeekExists(module, weekNumberValue);
     if (weekIndex === -1) {
       return res.status(404).json({ message: "Semana no encontrada" });
     }
 
-    const materials = module.weeklyContent[weekIndex].materials;
+    const materials = module.weeklyContent[weekIndex].materials || [];
     const materialIndex = materials.findIndex(
       (m: any) => m._id.toString() === materialId
     );

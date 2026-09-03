@@ -37,7 +37,10 @@ export const verifyToken = async (
     next();
   } catch (error: any) {
     console.log("error :>> ", error);
-    res.status(401).send(error.message);
+    res.status(401).json({
+      message: error?.message || "Token inválido",
+      code: error?.name || "InvalidToken",
+    });
   }
 };
 
